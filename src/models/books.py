@@ -1,11 +1,11 @@
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import BaseModel
 
 COUNTER = 0  # Каунтер, иметирующий присвоение id в базе данных
 
-# симулируем хранилище данных. Просто сохраняем объекты в память, в словаре.
+# симулируем хранилище данных. Просто сохраняем объекты в памяти, в словаре.
 # {0: {"id": 1, "title": "blabla", ...., "year": 2023}}
 fake_storage = {}
 
@@ -19,3 +19,7 @@ class Book(BaseModel):
     author: Mapped[str] = mapped_column(String(50), nullable=False)
     year: Mapped[int] = mapped_column(nullable=True)
     pages: Mapped[int]
+    
+    # Связь с продавцом
+    seller_id: Mapped[int] = mapped_column(ForeignKey("sellers_table.id"), nullable=True)
+    seller: Mapped["Seller"] = relationship("Seller", back_populates="books")

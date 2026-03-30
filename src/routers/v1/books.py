@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.configurations.database import get_async_session
+from src.configurations.security import get_current_seller_id
 from src.schemas import IncomingBook, PatchBook, ReturnedAllBooks, ReturnedBook
 from src.services import BookService
 
@@ -19,7 +20,14 @@ async def get_all_books(session: DBSession):
 
 
 @books_router.post("/", response_model=ReturnedBook, status_code=status.HTTP_201_CREATED)
-async def create_book(book: IncomingBook, session: DBSession):
+async def create_book(
+    book: IncomingBook,
+    session: DBSession,
+    current_seller_id: int = Depends(get_current_seller_id),
+):
+    """Создание новой книги (требует авторизации)"""
+    # Устанавливаем seller_id из токена
+    book.seller_id = current_seller_id
     new_book = await BookService(session).add_book(book)
 
     return new_book
@@ -37,7 +45,6 @@ async def get_single_book(book_id: int, session: DBSession):
 
 @books_router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_book(book_id: int, session: DBSession):
-
     deleted_book = await BookService(session).delete_book(book_id)
 
     if not deleted_book:
@@ -45,8 +52,23 @@ async def delete_book(book_id: int, session: DBSession):
 
 
 @books_router.put("/{book_id}", response_model=ReturnedBook)
-async def update_book(book_id: int, new_book_data: ReturnedBook, session: DBSession):
-
+async def update_book(
+    book_id: int,
+    new_book_data: ReturnedBook,
+    session: DBSession,
+    current_seller_id: int = Depends(get_current_seller_id),
+):
+    """Обновление книги (требует авторизации)"""
+    # Проверяем, что книга принадлежит текущему пользователю
+    book = await BookService(session).get_single_book(book_id)
+    
+    if not book:
+        return Response(status_code=status.HTTP_404_NOT_FOUND)
+    
+    # Проверяем права доступа
+    if book.seller_id != current_seller_id:
+        return Response(status_code=status.HTTP_403_FORBIDDEN)
+    
     updated_book = await BookService(session).update_book(book_id, new_book_data)
 
     if not updated_book:

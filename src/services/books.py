@@ -20,6 +20,7 @@ class BookService:
                 "author": book.author,
                 "year": book.year,
                 "pages": book.pages,
+                "seller_id": book.seller_id,
             }
         )
 
@@ -47,6 +48,7 @@ class BookService:
             updated_book.author = new_book_data.author
             updated_book.pages = new_book_data.pages
             updated_book.year = new_book_data.year
+            updated_book.seller_id = new_book_data.seller_id
 
             await self.session.flush()
 
@@ -63,6 +65,8 @@ class BookService:
                 book.year = patched_book.year
             if patched_book.pages is not None and patched_book.pages != book.pages:
                 book.pages = patched_book.pages
+            if patched_book.seller_id is not None and patched_book.seller_id != book.seller_id:
+                book.seller_id = patched_book.seller_id
 
             await self.session.flush()
             return book
@@ -74,7 +78,7 @@ class BookService:
         # Хотим видеть формат
         # books: [{"id": 1, "title": "blabla", ...., "year": 2023},{...}]
 
-        query = select(Book)  # SELECT * FROM boocs_table;
+        query = select(Book)  # SELECT * FROM books_table;
         result = await self.session.execute(query)  # await session.execute(select(Book))
 
         return result.scalars().all()

@@ -4,20 +4,22 @@ from icecream import ic
 from sqlalchemy import select
 
 from src.models.books import Book
+from src.models.sellers import Seller
+from src.configurations.security import get_password_hash
 
 API_V1_URL_PREFIX = "/api/v1/books"
 
 
 # Тест на ручку создающую книгу
 @pytest.mark.asyncio()
-async def test_create_book(async_client):
+async def test_create_book(auth_client):
     data = {
         "title": "Clean Architecture",
         "author": "Robert Martin",
         "count_pages": 300,
         "year": 2025,
     }
-    response = await async_client.post(f"{API_V1_URL_PREFIX}/", json=data)
+    response = await auth_client.post(f"{API_V1_URL_PREFIX}/", json=data)
 
     assert response.status_code == status.HTTP_201_CREATED
 
@@ -26,23 +28,26 @@ async def test_create_book(async_client):
     resp_book_id = result_data.pop("id", None)
     assert resp_book_id is not None, "Book id not returned from endpoint"
 
+    # В заглушке тестовой авторизации seller_id=1
+    # Продавец с ID=1 должен быть создан фикстурой create_test_seller
     assert result_data == {
         "title": "Clean Architecture",
         "author": "Robert Martin",
         "pages": 300,
         "year": 2025,
+        "seller_id": 1,  # Изменено с None на 1, так как используется auth_client
     }
 
 
 @pytest.mark.asyncio()
-async def test_create_book_with_old_year(async_client):
+async def test_create_book_with_old_year(auth_client):
     data = {
         "title": "Clean Architecture",
         "author": "Robert Martin",
         "count_pages": 300,
-        "year": 1986,
+        "year": 999,
     }
-    response = await async_client.post(f"{API_V1_URL_PREFIX}/", json=data)
+    response = await auth_client.post(f"{API_V1_URL_PREFIX}/", json=data)
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
@@ -73,6 +78,7 @@ async def test_get_books(db_session, async_client):
                 "year": 2021,
                 "id": book.id,
                 "pages": 104,
+                "seller_id": None,  # Добавлено поле seller_id
             },
             {
                 "title": "Mziri",
@@ -80,6 +86,7 @@ async def test_get_books(db_session, async_client):
                 "year": 2021,
                 "id": book_2.id,
                 "pages": 108,
+                "seller_id": None,  # Добавлено поле seller_id
             },
         ]
     }
@@ -107,6 +114,7 @@ async def test_get_single_book(db_session, async_client):
         "year": 2001,
         "pages": 104,
         "id": book.id,
+        "seller_id": None,  # Добавлено поле seller_id
     }
 
 
@@ -126,10 +134,16 @@ async def test_get_single_book_with_wrong_id(db_session, async_client):
 
 # Тест на ручку обновления книги
 @pytest.mark.asyncio()
-async def test_update_book(db_session, async_client):
-    # Создаем книги вручную, а не через ручку, чтобы нам не попасться на ошибку которая
-    # может случиться в POST ручке
-    book = Book(author="Pushkin", title="Eugeny Onegin", year=2001, pages=104)
+async def test_update_book(db_session, auth_client):
+    # Используем продавца с ID=1 (должен быть создан фикстурой)
+    # Создаем книгу для этого продавца
+    book = Book(
+        author="Pushkin", 
+        title="Eugeny Onegin", 
+        year=2001, 
+        pages=104,
+        seller_id=1  # Привязываем книгу к продавцу с ID=1
+    )
 
     db_session.add(book)
     await db_session.flush()
@@ -140,9 +154,10 @@ async def test_update_book(db_session, async_client):
         "pages": 250,
         "year": 2024,
         "id": book.id,
+        "seller_id": 1,  # Добавляем seller_id
     }
 
-    response = await async_client.put(
+    response = await auth_client.put(
         f"{API_V1_URL_PREFIX}/{book.id}",
         json=data,
     )
@@ -157,6 +172,7 @@ async def test_update_book(db_session, async_client):
     assert res.pages == 250
     assert res.year == 2024
     assert res.id == book.id
+    assert res.seller_id == 1
 
 
 @pytest.mark.asyncio()

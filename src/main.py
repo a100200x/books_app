@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
 # в нем можно указать разные параметры для сваггера и для эндпоинтов.
 app = FastAPI(
     title="Book Library App",
-    description="Учебное приложение для MTS Shad",
+    description="Book Library App",
     version="0.0.1",
     responses={404: {"description": "Object not found!"}},
     default_response_class=ORJSONResponse,  # Подключаем быстрый сериализатор
